@@ -79,8 +79,18 @@ def clean_html(value):
         return value or ""
 
 
+YOUTUBE_THUMB = re.compile(
+    r"https?://(?:img\.youtube\.com|i\d?\.ytimg\.com)/vi(?:_webp)?/([\w-]{11})/"
+)
+
+
 def enlarge_image(url):
-    """Ask Blogger/Google for a large (1200px) version of an image."""
+    """Ask Blogger/Google (or YouTube) for a large version of an image."""
+    # YouTube: default.jpg is only 120x90, maxresdefault.jpg is 1280x720
+    youtube = YOUTUBE_THUMB.match(url)
+    if youtube:
+        return f"https://img.youtube.com/vi/{youtube.group(1)}/maxresdefault.jpg"
+
     url = re.sub(r"/s\d+(?:-[a-z]*\d*)*/", "/s1200/", url)
     url = re.sub(r"/w\d+-h\d+(?:-[a-z]+)*/", "/s1200/", url)
     url = re.sub(r"=s\d+(?:-[a-z]*\d*)*$", "=s1200", url)
@@ -111,6 +121,17 @@ def build_image_html(url, alt="", featured=False):
     safe = lambda value: html.escape(value, quote=True)
     alt = safe(alt)
     loading = 'loading="eager" fetchpriority="high"' if featured else 'loading="lazy"'
+
+    if "img.youtube.com/vi/" in url and url.endswith("/maxresdefault.jpg"):
+        # Not every video has a maxres thumbnail; fall back to hqdefault (480x360)
+        fallback = (
+            "this.onerror=null;"
+            "this.src=this.src.replace('maxresdefault','hqdefault')"
+        )
+        return (
+            f'<img src="{safe(url)}" alt="{alt}" decoding="async" '
+            f'{loading} onerror="{fallback}">'
+        )
 
     if not is_resizable(url):
         return f'<img src="{safe(url)}" alt="{alt}" {loading}>'
@@ -302,8 +323,7 @@ def build_head(items):
 <link rel="alternate" type="application/rss+xml" title="{esc(SITE_NAME)} RSS" href="{esc(SITE_URL)}/feed.xml">
 
 <meta name="yandex-verification" content="a6ffcfd1660beece">
-<meta name="msvalidate.01" content="F5D027AB5C3BECB99BC9B93916923972">
-
+<meta name="msvalidate.01" content="D248AE1124FBF7EFD5C29B97010FC431" />
 {icons}
 
 <meta property="og:locale" content="vi_VN">
